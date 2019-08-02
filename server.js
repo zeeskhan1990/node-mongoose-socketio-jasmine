@@ -34,7 +34,18 @@ app.get('/messages', (req, res) => {
     })
 })
 
-app.post('/messages', (req, res) => {
+app.get('/messages/:user', (req, res) => {
+    const user = req.params.user
+    Message.find({name: user})
+    .then((userDoc) => {
+        res.status(200).send(userDoc)
+    })
+    .catch((err) => {
+        console.log("Failed to retrieve messages of the specified user", err)
+    })
+})
+
+/* app.post('/messages', (req, res) => {
     const message = new Message(req.body)
     //Not to be done in real app, the message is saved and then deleted. A soft delete or not saving in the first place is better.
     message.save().then(() => {
@@ -62,7 +73,32 @@ app.post('/messages', (req, res) => {
         console.log("Posting message failed ", err)
         res.sendStatus(500)
     })
+}) */
+
+app.post('/messages', async (req, res) => {
+    try {
+        const message = new Message(req.body)
+        //Not to be done in real app, the message is saved and then deleted. A soft delete or not saving in the first place is better.
+        await message.save()
+        console.log("Saved")
+        const censored = await Message.findOne({message: 'badword'})
+        if (censored) {
+            console.log("Badword found")
+            await Message.deleteOne({_id: censored.id})
+        } else {
+            io.emit('message', req.body)
+        }
+        res.status(200).send(req.body)
+    } catch(err) {
+        console.log("Failed to post message")
+        res.sendStatus(500)
+    } finally {
+        console.log("Message post done!")
+    }
+    
 })
+
+
 
 io.on("connection", (socket) => {
     console.log("User Socket connected")
